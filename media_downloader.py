@@ -4,6 +4,7 @@ import logging
 import os
 import shutil
 import time
+import datetime
 from typing import List, Optional, Tuple, Union
 
 import pyrogram
@@ -242,10 +243,14 @@ async def _get_media_meta(
 
         if not file_name and message.photo:
             file_name = f"{message.photo.file_unique_id}"
+        
+        if (caption and not caption.isdigit()) and (file_name and file_name.isdigit()):
 
-        gen_file_name = (
-            app.get_file_name(message.id, file_name, caption) + file_name_suffix
-        )
+            gen_file_name = caption + file_name_suffix
+        else:
+            gen_file_name = (
+                app.get_file_name(message.id, file_name, caption) + file_name_suffix
+            )
 
         file_save_path = app.get_file_save_path(_type, dirname, datetime_dir_name)
 
@@ -551,7 +556,9 @@ async def download_chat_task(
         max_id=node.end_offset_id,
         offset_id=chat_download_config.last_read_message_id,
         reverse=True,
+        # reverse=False,
     )
+
 
     chat_download_config.node = node
 
@@ -565,35 +572,37 @@ async def download_chat_task(
             await add_download_task(message, node)
 
     async for message in messages_iter:  # type: ignore
-        meta_data = MetaData()
-
-        caption = message.caption
-        if caption:
-            caption = validate_title(caption)
-            app.set_caption_name(node.chat_id, message.media_group_id, caption)
-            app.set_caption_entities(
-                node.chat_id, message.media_group_id, message.caption_entities
-            )
-        else:
-            caption = app.get_caption_name(node.chat_id, message.media_group_id)
-        set_meta_data(meta_data, message, caption)
-
-        if app.need_skip_message(chat_download_config, message.id):
-            continue
-
-        if app.exec_filter(chat_download_config, meta_data):
-            await add_download_task(message, node)
-        else:
-            node.download_status[message.id] = DownloadStatus.SkipDownload
-            if message.media_group_id:
-                await upload_telegram_chat(
-                    client,
-                    node.upload_user,
-                    app,
-                    node,
-                    message,
-                    DownloadStatus.SkipDownload,
+        
+        if message.date > datetime.datetime(2025,10,1):
+            meta_data = MetaData()
+            
+            caption = message.caption
+            if caption:
+                caption = validate_title(caption)
+                app.set_caption_name(node.chat_id, message.media_group_id, caption)
+                app.set_caption_entities(
+                    node.chat_id, message.media_group_id, message.caption_entities
                 )
+            else:
+                caption = app.get_caption_name(node.chat_id, message.media_group_id)
+            set_meta_data(meta_data, message, caption)
+
+            if app.need_skip_message(chat_download_config, message.id):
+                continue
+
+            if app.exec_filter(chat_download_config, meta_data):
+                await add_download_task(message, node)
+            else:
+                node.download_status[message.id] = DownloadStatus.SkipDownload
+                if message.media_group_id:
+                    await upload_telegram_chat(
+                        client,
+                        node.upload_user,
+                        app,
+                        node,
+                        message,
+                        DownloadStatus.SkipDownload,
+                    )
 
     chat_download_config.need_check = True
     chat_download_config.total_task = node.total_task

@@ -270,6 +270,8 @@ def validate_title(title: str) -> str:
 
     r_str = r"[/\\:*?\"<>|\n]"  # '/ \ : * ? " < > |'
     new_title = re.sub(r_str, "_", title)
+    new_title = new_title.strip()
+    new_title = new_title.split("#")[0].replace(" ", "")
     return new_title
 
 

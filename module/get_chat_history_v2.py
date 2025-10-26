@@ -55,7 +55,8 @@ async def get_chat_history_v2(
     max_id: int = 0,
     offset: int = 0,
     offset_id: int = 0,
-    offset_date: datetime = utils.zero_datetime(),
+    # offset_date: datetime = utils.zero_datetime(),
+    offset_date = datetime(2025, 1, 1),
     reverse: bool = False,
 ) -> Optional[AsyncGenerator["types.Message", None]]:
     """Get messages from a chat history."""
