@@ -12,6 +12,7 @@ from loguru import logger
 from pyrogram.types import Audio, Document, Photo, Video, VideoNote, Voice
 from rich.logging import RichHandler
 
+from pyrogram import utils
 from module.app import Application, ChatDownloadConfig, DownloadStatus, TaskNode
 from module.bot import start_download_bot, stop_download_bot
 from module.download_stat import update_download_status
@@ -547,6 +548,8 @@ async def download_chat_task(
     client: pyrogram.Client,
     chat_download_config: ChatDownloadConfig,
     node: TaskNode,
+    start_date: datetime.datetime = utils.zero_datetime(), 
+    end_date: datetime.datetime = datetime.datetime.now(),
 ):
     """Download all task"""
     messages_iter = get_chat_history_v2(
@@ -573,7 +576,11 @@ async def download_chat_task(
 
     async for message in messages_iter:  # type: ignore
         
-        if message.date > datetime.datetime(2025,10,1):
+        # start_date = datetime.datetime(2025, 9, 1)
+        # end_date = datetime.datetime(2025, 9, 31)
+        print(start_date, end_date, message.date)
+        # end_time = datetime.datetime(2025,10,1)
+        if end_date > message.date > start_date:
             meta_data = MetaData()
             
             caption = message.caption
@@ -609,12 +616,12 @@ async def download_chat_task(
     node.is_running = True
 
 
-async def download_all_chat(client: pyrogram.Client):
+async def download_all_chat(client: pyrogram.Client, start_date: datetime.datetime, end_date: datetime.datetime):
     """Download All chat"""
     for key, value in app.chat_download_config.items():
         value.node = TaskNode(chat_id=key)
         try:
-            await download_chat_task(client, value, value.node)
+            await download_chat_task(client, value, value.node, start_date, end_date)
         except Exception as e:
             logger.warning(f"Download {key} error: {e}")
         finally:
@@ -666,6 +673,9 @@ def main():
         workdir=app.session_file_path,
         start_timeout=app.start_timeout,
     )
+    # start_date = utils.zero_datetime()
+    start_date = datetime.datetime(2025, 9, 1)
+    end_date =datetime.datetime(2025, 9, 30)
     try:
         app.pre_run()
         init_web(app)
@@ -675,7 +685,7 @@ def main():
         app.loop.run_until_complete(start_server(client))
         logger.success(_t("Successfully started (Press Ctrl+C to stop)"))
 
-        app.loop.create_task(download_all_chat(client))
+        app.loop.create_task(download_all_chat(client, start_date, end_date))
         for _ in range(app.max_download_task):
             task = app.loop.create_task(worker(client))
             tasks.append(task)
