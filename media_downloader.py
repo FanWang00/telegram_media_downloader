@@ -35,6 +35,8 @@ from utils.log import LogFilter
 from utils.meta import print_meta
 from utils.meta_data import MetaData
 
+from tools import read_missing_names
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(message)s",
@@ -809,7 +811,8 @@ def main():
     end_date =datetime.datetime(2025, 12, 31)
     # file_names = [
     # ]
-    file_names = None
+    file_names = read_missing_names()
+    # file_names = None
     try:
         app.pre_run()
         init_web(app)

@@ -4,6 +4,8 @@ from collections import defaultdict, Counter
 
 # ====== CONFIG ======
 ROOT = r"E:\水果派\2025_12"   # 改成你的目录
+OUT_FILE = "missing_names.txt"   # output filename under ROOT
+WRITE_PREFIX_FORM = True         # also write "水果派{date}{label}_"
 # ====================
 
 # 匹配：可选前缀“水果派”，6位日期，连续字母(至少1位)，下划线
@@ -45,6 +47,8 @@ for p in root.rglob("*"):
     date = m.group(1)
     label = m.group(2).upper()
     date_labels[date].append(label)
+
+missing_all = []  # collect missing names to write
 
 # 输出报告（按日期排序）
 for date in sorted(date_labels.keys()):
@@ -88,3 +92,18 @@ for date in sorted(date_labels.keys()):
         print("  missing: (none)")
     if duplicates:
         print(f"  duplicates({len(duplicates)}): {', '.join(duplicates)}")
+
+    # ===== collect missing names =====
+    for lb in missing:
+        add_filename = f"{date}{lb}"
+        if WRITE_PREFIX_FORM:
+            add_filename = f"水果派{add_filename}_"
+        missing_all.append(add_filename)
+
+# ===== write to file =====
+# out_path = root / OUT_FILE
+out_path = OUT_FILE
+with open(out_path, "w", encoding="utf-8") as f:
+    f.write("\n".join(missing_all))
+
+print(f"\nSaved missing names to: {out_path}")

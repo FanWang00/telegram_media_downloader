@@ -1,4 +1,5 @@
 ids_to_retry: []
 chat:
 - chat_id: -1002090605054
-  ids_to_retry: []
+  ids_to_retry:
+  - []
