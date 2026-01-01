@@ -35,6 +35,8 @@ from utils.log import LogFilter
 from utils.meta import print_meta
 from utils.meta_data import MetaData
 
+from tools import read_missing_names
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(message)s",
@@ -54,6 +56,90 @@ logging.getLogger("pyrogram.session.session").addFilter(LogFilter())
 logging.getLogger("pyrogram.client").addFilter(LogFilter())
 
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
+
+
+import re
+from typing import Iterable, Set
+
+TG_KEY_RE = re.compile(r"(\d{6}[A-Za-z])")  # e.g. 251228P
+
+def extract_tg_key(file_name: str) -> Optional[str]:
+    m = TG_KEY_RE.search(file_name or "")
+    return m.group(1) if m else None
+
+
+def message_contains_key(message: pyrogram.types.Message, key: str) -> bool:
+    key_low = key.lower()
+
+    for s in (getattr(message, "caption", None), getattr(message, "text", None)):
+        if s and key_low in s.lower():
+            return True
+
+    for media_attr in ("document", "video", "audio", "voice", "video_note", "photo"):
+        media_obj = getattr(message, media_attr, None)
+        if not media_obj:
+            continue
+        fn = getattr(media_obj, "file_name", None)
+        if fn and key_low in fn.lower():
+            return True
+
+    return False
+
+
+async def enqueue_download_by_filenames(
+    client: pyrogram.Client,
+    chat_id: Union[int, str],
+    node: TaskNode,
+    file_names: Optional[List[str]] = None,
+    limit_per_key: int = 200,
+) -> int:
+    """
+    If file_names is provided, extract keys (e.g. 251228P) from each, search TG,
+    and enqueue matching messages to your normal download workers.
+
+    If file_names is None/empty => do nothing (normal download flow should run).
+    Returns: number of queued messages
+    """
+    if not file_names:
+        return 0
+
+    keys: Set[str] = set()
+    for fn in file_names:
+        k = extract_tg_key(fn)
+        if k:
+            keys.add(k)
+
+    if not keys:
+        logger.warning(f"No TG keys found in file_names: {file_names}")
+        return 0
+
+    queued = 0
+    seen_msg_ids: Set[int] = set()
+
+    for key in sorted(keys):
+        logger.info(f"Searching chat={chat_id} for key='{key}' (limit={limit_per_key})...")
+        async for msg in client.search_messages(chat_id=chat_id, query=key, limit=limit_per_key):
+            if not msg or msg.empty:
+                continue
+            if msg.id in seen_msg_ids:
+                continue
+            if not message_contains_key(msg, key):
+                continue
+
+            # Respect existing skip logic if you want:
+            # if app.need_skip_message(node.chat_download_config, msg.id): ...
+            ok = await add_download_task(msg, node)
+            if ok:
+                queued += 1
+                seen_msg_ids.add(msg.id)
+
+    if queued:
+        logger.success(f"Queued {queued} message(s) for keys={sorted(keys)} in chat={chat_id}")
+    else:
+        logger.warning(f"No messages matched keys={sorted(keys)} in chat={chat_id}")
+
+    return queued
+
 
 
 def _check_download_finish(media_size: int, download_path: str, ui_file_name: str):
@@ -616,12 +702,59 @@ async def download_chat_task(
     node.is_running = True
 
 
-async def download_all_chat(client: pyrogram.Client, start_date: datetime.datetime, end_date: datetime.datetime):
-    """Download All chat"""
+# async def download_all_chat(client: pyrogram.Client, start_date: datetime.datetime, end_date: datetime.datetime):
+#     """Download All chat"""
+#     for key, value in app.chat_download_config.items():
+#         value.node = TaskNode(chat_id=key)
+#         try:
+#             await download_chat_task(client, value, value.node, start_date, end_date)
+#         except Exception as e:
+#             logger.warning(f"Download {key} error: {e}")
+#         finally:
+#             value.need_check = True
+async def download_chat_task_by_filenames(
+    client: pyrogram.Client,
+    chat_download_config: ChatDownloadConfig,
+    node: TaskNode,
+    file_names: List[str],
+):
+    """
+    Target mode: ONLY queue messages that match the filename keys.
+    No normal history scan.
+    """
+    chat_download_config.node = node
+
+    await enqueue_download_by_filenames(
+        client=client,
+        chat_id=node.chat_id,
+        node=node,
+        file_names=file_names,
+        limit_per_key=200,
+    )
+
+    # Mark as ready for run_until_all_task_finish()
+    chat_download_config.need_check = True
+    chat_download_config.total_task = node.total_task
+    node.is_running = True
+
+
+async def download_all_chat(
+    client: pyrogram.Client,
+    start_date: datetime.datetime,
+    end_date: datetime.datetime,
+    file_names: Optional[List[str]] = None,
+):
+    """Download All chat. If file_names provided => target mode only."""
+    target_mode = bool(file_names)
+
     for key, value in app.chat_download_config.items():
         value.node = TaskNode(chat_id=key)
         try:
-            await download_chat_task(client, value, value.node, start_date, end_date)
+            if target_mode:
+                await download_chat_task_by_filenames(client, value, value.node, file_names)  # type: ignore
+            else:
+                await download_chat_task(client, value, value.node, start_date, end_date)
+
         except Exception as e:
             logger.warning(f"Download {key} error: {e}")
         finally:
@@ -674,8 +807,13 @@ def main():
         start_timeout=app.start_timeout,
     )
     # start_date = utils.zero_datetime()
-    start_date = datetime.datetime(2025, 12, 30)
+    start_date = datetime.datetime(2025, 12, 31)
     end_date =datetime.datetime(2026, 1, 2)
+    # file_names = [
+    # ]
+    file_names = None
+    file_names = read_missing_names()
+    
     try:
         app.pre_run()
         init_web(app)
@@ -685,7 +823,7 @@ def main():
         app.loop.run_until_complete(start_server(client))
         logger.success(_t("Successfully started (Press Ctrl+C to stop)"))
 
-        app.loop.create_task(download_all_chat(client, start_date, end_date))
+        app.loop.create_task(download_all_chat(client, start_date, end_date, file_names=file_names))
         for _ in range(app.max_download_task):
             task = app.loop.create_task(worker(client))
             tasks.append(task)

@@ -3,7 +3,7 @@ from pathlib import Path
 from collections import defaultdict, Counter
 
 # ====== CONFIG ======
-ROOT = r"E:\水果派\2025_12"   # 改成你的目录
+ROOT = r"E:\水果派\水果派2025_11"   # 改成你的目录
 OUT_FILE = "missing_names.txt"   # output filename under ROOT
 WRITE_PREFIX_FORM = True         # also write "水果派{date}{label}_"
 # ====================
@@ -95,10 +95,23 @@ for date in sorted(date_labels.keys()):
 
     # ===== collect missing names =====
     for lb in missing:
+        # 原始缺失名
         add_filename = f"{date}{lb}"
         if WRITE_PREFIX_FORM:
             add_filename = f"水果派{add_filename}_"
         missing_all.append(add_filename)
+
+        # 额外：I -> 1，O -> 0
+        if lb == "I":
+            add2 = f"{date}1"
+            if WRITE_PREFIX_FORM:
+                add2 = f"水果派{add2}_"
+            missing_all.append(add2)
+        elif lb == "O":
+            add2 = f"{date}0"
+            if WRITE_PREFIX_FORM:
+                add2 = f"水果派{add2}_"
+            missing_all.append(add2)
 
 # ===== write to file =====
 # out_path = root / OUT_FILE

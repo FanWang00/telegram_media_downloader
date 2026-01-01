@@ -61,7 +61,7 @@ def rename_recursively(root: Path) -> int:
 if __name__ == "__main__":
     
     
-    ROOT = r"C:\Users\wf\Documents\telegram_media_downloader\downloads\水果派🍉AV解说福利社\2025_12"   # <-- change this
+    ROOT = r"E:\水果派\水果派2025_11"   # <-- change this
     DRY_RUN = False              # True = preview only, False = actually rename
     FOLLOW_SYMLINKS = False
     total = rename_recursively(Path(ROOT))
