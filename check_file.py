@@ -3,7 +3,7 @@ from pathlib import Path
 from collections import defaultdict, Counter
 
 # ====== CONFIG ======
-ROOT = r"E:\水果派\水果派2025_11"   # 改成你的目录
+ROOT = r"E:\水果派\2025_12"   # 改成你的目录
 OUT_FILE = "missing_names.txt"   # output filename under ROOT
 WRITE_PREFIX_FORM = True         # also write "水果派{date}{label}_"
 # ====================

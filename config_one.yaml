@@ -1,8 +1,8 @@
 api_hash: a9a02c1d67d1fffc9f99b033fbbda44a
 api_id: 28138839
 chat:
-- chat_id: -1002090605054
-  last_read_message_id: 16390
+- chat_id: -1001846698502
+  last_read_message_id: 0
 file_formats:
   # audio:
   # - all

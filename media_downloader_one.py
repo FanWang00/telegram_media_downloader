@@ -44,8 +44,8 @@ logging.basicConfig(
     handlers=[RichHandler()],
 )
 
-CONFIG_NAME = "config.yaml"
-DATA_FILE_NAME = "data.yaml"
+CONFIG_NAME = "config_one.yaml"
+DATA_FILE_NAME = "data_one.yaml"
 APPLICATION_NAME = "media_downloader"
 app = Application(CONFIG_NAME, DATA_FILE_NAME, APPLICATION_NAME)
 
@@ -807,12 +807,12 @@ def main():
         start_timeout=app.start_timeout,
     )
     # start_date = utils.zero_datetime()
-    start_date = datetime.datetime(2025, 12, 31)
-    end_date =datetime.datetime(2026, 1, 2)
+    start_date = datetime.datetime(2025, 12, 1)
+    end_date =datetime.datetime(2022, 12, 2)
     # file_names = [
     # ]
     file_names = None
-    file_names = read_missing_names()
+    # file_names = read_missing_names()
     
     try:
         app.pre_run()
