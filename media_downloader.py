@@ -672,6 +672,7 @@ def main():
         proxy=app.proxy,
         workdir=app.session_file_path,
         start_timeout=app.start_timeout,
+        no_updates=True,
     )
     # start_date = utils.zero_datetime()
     start_date = datetime.datetime(2026, 1, 31)
